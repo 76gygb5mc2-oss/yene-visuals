@@ -28,7 +28,7 @@ async function readBlob(key: string): Promise<string | null> {
 }
 
 async function writeBlob(key: string, data: string): Promise<void> {
-  await put(key, data, { access: 'public', addRandomSuffix: false });
+  await put(key, data, { access: 'public', addRandomSuffix: false, allowOverwrite: true });
 }
 
 export async function getBookings(): Promise<Booking[]> {
