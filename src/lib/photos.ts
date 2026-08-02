@@ -1,4 +1,4 @@
-import { put, del } from '@vercel/blob';
+import { put, del, head } from '@vercel/blob';
 
 export interface Photo {
   id: string;
@@ -17,30 +17,11 @@ export interface Photo {
 
 const DATA_PATHNAME = 'data/photos.json';
 
-// Store the known URL after first write
-let knownDataUrl: string | null = null;
-
-async function getDataUrl(): Promise<string> {
-  if (knownDataUrl) return knownDataUrl;
-  // Construct the URL from the store domain
-  // Vercel Blob URLs follow pattern: https://<store>.public.blob.vercel-storage.com/<pathname>
-  const token = process.env.BLOB_READ_WRITE_TOKEN || '';
-  // Extract store ID from token: vercel_blob_rw_<storeId>_<rest>
-  const match = token.match(/vercel_blob_rw_([^_]+)_/);
-  if (match) {
-    knownDataUrl = `https://${match[1]}.public.blob.vercel-storage.com/${DATA_PATHNAME}`;
-    return knownDataUrl;
-  }
-  throw new Error('Cannot determine blob store URL');
-}
-
 async function readData(): Promise<string | null> {
   try {
-    const url = await getDataUrl();
-    const res = await fetch(url + `?t=${Date.now()}`, { 
-      cache: 'no-store',
-      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' }
-    });
+    // Use head() to get fresh metadata, then fetch with downloadUrl (bypasses CDN cache)
+    const blob = await head(DATA_PATHNAME);
+    const res = await fetch(blob.downloadUrl, { cache: 'no-store' });
     if (!res.ok) return null;
     return await res.text();
   } catch {
@@ -49,12 +30,11 @@ async function readData(): Promise<string | null> {
 }
 
 async function writeData(data: string): Promise<void> {
-  const result = await put(DATA_PATHNAME, data, { 
+  await put(DATA_PATHNAME, data, { 
     access: 'public', 
     addRandomSuffix: false, 
     allowOverwrite: true,
   });
-  knownDataUrl = result.url;
 }
 
 export async function getPhotos(): Promise<Photo[]> {

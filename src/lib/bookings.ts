@@ -1,4 +1,4 @@
-import { put } from '@vercel/blob';
+import { put, head } from '@vercel/blob';
 
 export interface Booking {
   id: string;
@@ -16,26 +16,10 @@ export interface Booking {
 
 const DATA_PATHNAME = 'data/bookings.json';
 
-let knownDataUrl: string | null = null;
-
-async function getDataUrl(): Promise<string> {
-  if (knownDataUrl) return knownDataUrl;
-  const token = process.env.BLOB_READ_WRITE_TOKEN || '';
-  const match = token.match(/vercel_blob_rw_([^_]+)_/);
-  if (match) {
-    knownDataUrl = `https://${match[1]}.public.blob.vercel-storage.com/${DATA_PATHNAME}`;
-    return knownDataUrl;
-  }
-  throw new Error('Cannot determine blob store URL');
-}
-
 async function readData(): Promise<string | null> {
   try {
-    const url = await getDataUrl();
-    const res = await fetch(url + `?t=${Date.now()}`, { 
-      cache: 'no-store',
-      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' }
-    });
+    const blob = await head(DATA_PATHNAME);
+    const res = await fetch(blob.downloadUrl, { cache: 'no-store' });
     if (!res.ok) return null;
     return await res.text();
   } catch {
@@ -44,12 +28,11 @@ async function readData(): Promise<string | null> {
 }
 
 async function writeData(data: string): Promise<void> {
-  const result = await put(DATA_PATHNAME, data, { 
+  await put(DATA_PATHNAME, data, { 
     access: 'public', 
     addRandomSuffix: false, 
     allowOverwrite: true,
   });
-  knownDataUrl = result.url;
 }
 
 export async function getBookings(): Promise<Booking[]> {
