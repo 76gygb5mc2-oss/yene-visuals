@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       // Upload main image to Vercel Blob
       const mainBlob = await put(`photos/${filename}`, file, {
         access: 'public',
-        addRandomSuffix: false,
+        addRandomSuffix: true,
         contentType,
       });
 
