@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { put, del } from '@vercel/blob';
+import { put } from '@vercel/blob';
 import { v4 as uuidv4 } from 'uuid';
 import { getPhotos, addPhoto, deletePhoto, updatePhoto } from '@/lib/photos';
 
@@ -97,23 +97,7 @@ export async function DELETE(request: NextRequest) {
       return Response.json({ error: 'Photo ID required' }, { status: 400 });
     }
 
-    // Get photo to find blob URLs to delete
-    const photos = await getPhotos();
-    const photo = photos.find((p) => p.id === id);
-    
-    if (!photo) {
-      return Response.json({ error: 'Photo not found' }, { status: 404 });
-    }
-
-    // Delete blobs
-    try {
-      if (photo.url) await del(photo.url);
-      if (photo.thumbUrl && photo.thumbUrl !== photo.url) await del(photo.thumbUrl);
-    } catch {
-      // blob may already be gone
-    }
-
-    // Remove from data
+    // deletePhoto handles both blob cleanup and DB removal
     const result = await deletePhoto(id);
     if (!result.success) {
       return Response.json({ error: 'Photo not found' }, { status: 404 });

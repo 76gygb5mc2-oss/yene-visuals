@@ -1,4 +1,4 @@
-import { put, head } from '@vercel/blob';
+import { supabaseAdmin, supabase } from './supabase';
 
 export interface Booking {
   id: string;
@@ -14,66 +14,100 @@ export interface Booking {
   createdAt: string;
 }
 
-const DATA_PATHNAME = 'data/bookings.json';
-
-async function readData(): Promise<string | null> {
-  try {
-    const blob = await head(DATA_PATHNAME);
-    const res = await fetch(blob.downloadUrl, { cache: 'no-store' });
-    if (!res.ok) return null;
-    return await res.text();
-  } catch {
-    return null;
-  }
+// Convert DB row (snake_case) → app interface (camelCase)
+function rowToBooking(row: Record<string, unknown>): Booking {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    email: row.email as string,
+    phone: row.phone as string,
+    sessionType: row.session_type as string,
+    date: row.date as string,
+    location: row.location as string,
+    budget: row.budget as string,
+    notes: row.notes as string,
+    status: row.status as Booking['status'],
+    createdAt: row.created_at as string,
+  };
 }
 
-async function writeData(data: string): Promise<void> {
-  await put(DATA_PATHNAME, data, { 
-    access: 'public', 
-    addRandomSuffix: false, 
-    allowOverwrite: true,
-  });
+// Convert app interface (camelCase) → DB row (snake_case)
+function bookingToRow(booking: Partial<Booking>) {
+  const row: Record<string, unknown> = {};
+  if (booking.id !== undefined) row.id = booking.id;
+  if (booking.name !== undefined) row.name = booking.name;
+  if (booking.email !== undefined) row.email = booking.email;
+  if (booking.phone !== undefined) row.phone = booking.phone;
+  if (booking.sessionType !== undefined) row.session_type = booking.sessionType;
+  if (booking.date !== undefined) row.date = booking.date;
+  if (booking.location !== undefined) row.location = booking.location;
+  if (booking.budget !== undefined) row.budget = booking.budget;
+  if (booking.notes !== undefined) row.notes = booking.notes;
+  if (booking.status !== undefined) row.status = booking.status;
+  if (booking.createdAt !== undefined) row.created_at = booking.createdAt;
+  return row;
 }
 
 export async function getBookings(): Promise<Booking[]> {
-  const raw = await readData();
-  if (!raw) return [];
-  try {
-    return JSON.parse(raw);
-  } catch {
+  const { data, error } = await supabaseAdmin
+    .from('bookings')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching bookings:', error);
     return [];
   }
-}
 
-async function saveBookings(bookings: Booking[]): Promise<void> {
-  await writeData(JSON.stringify(bookings, null, 2));
+  return (data || []).map(rowToBooking);
 }
 
 export async function addBooking(booking: Booking): Promise<Booking> {
-  const bookings = await getBookings();
-  bookings.push(booking);
-  await saveBookings(bookings);
-  return booking;
+  const row = bookingToRow(booking);
+  // Use anon client for public booking submissions (goes through RLS)
+  const { data, error } = await supabase
+    .from('bookings')
+    .insert(row)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error adding booking:', error);
+    throw new Error(`Failed to add booking: ${error.message}`);
+  }
+
+  return rowToBooking(data);
 }
 
 export async function updateBookingStatus(
   id: string,
   status: Booking['status']
 ): Promise<Booking | null> {
-  const bookings = await getBookings();
-  const index = bookings.findIndex((b) => b.id === id);
-  if (index === -1) return null;
+  const { data, error } = await supabaseAdmin
+    .from('bookings')
+    .update({ status })
+    .eq('id', id)
+    .select()
+    .single();
 
-  bookings[index] = { ...bookings[index], status };
-  await saveBookings(bookings);
-  return bookings[index];
+  if (error) {
+    console.error('Error updating booking status:', error);
+    return null;
+  }
+
+  return rowToBooking(data);
 }
 
 export async function deleteBooking(id: string): Promise<boolean> {
-  const bookings = await getBookings();
-  const filtered = bookings.filter((b) => b.id !== id);
-  if (filtered.length === bookings.length) return false;
+  const { error } = await supabaseAdmin
+    .from('bookings')
+    .delete()
+    .eq('id', id);
 
-  await saveBookings(filtered);
+  if (error) {
+    console.error('Error deleting booking:', error);
+    return false;
+  }
+
   return true;
 }
