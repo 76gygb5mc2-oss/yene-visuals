@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { put } from '@vercel/blob';
+import { put, del } from '@vercel/blob';
 import { v4 as uuidv4 } from 'uuid';
 import { getPhotos, addPhoto, deletePhoto, updatePhoto } from '@/lib/photos';
 
@@ -43,69 +43,31 @@ export async function POST(request: NextRequest) {
       }
 
       const id = uuidv4();
-      const buffer = Buffer.from(await file.arrayBuffer());
-
-      let optimizedBuffer = buffer;
-      let thumbBuffer: Buffer | null = null;
-      let width = 1200;
-      let height = 800;
-
-      try {
-        const sharp = (await import('sharp')).default;
-        const metadata = await sharp(buffer).metadata();
-
-        // Optimize main image
-        const optimized = sharp(buffer)
-          .rotate()
-          .resize(2400, 2400, { fit: 'inside', withoutEnlargement: true })
-          .jpeg({ quality: 82, progressive: true, mozjpeg: true });
-
-        optimizedBuffer = await optimized.toBuffer();
-
-        const finalMeta = await sharp(optimizedBuffer).metadata();
-        width = finalMeta.width || metadata.width || 1200;
-        height = finalMeta.height || metadata.height || 800;
-
-        // Create thumbnail
-        thumbBuffer = await sharp(buffer)
-          .rotate()
-          .resize(600, 600, { fit: 'cover', position: 'centre' })
-          .jpeg({ quality: 75, progressive: true })
-          .toBuffer();
-      } catch {
-        // sharp not available on Vercel — upload original
-        optimizedBuffer = buffer;
-      }
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpeg';
+      const filename = `${id}.${ext}`;
+      const contentType = file.type || 'image/jpeg';
 
       // Upload main image to Vercel Blob
-      const mainBlob = await put(`photos/${id}.jpeg`, optimizedBuffer, {
+      const mainBlob = await put(`photos/${filename}`, file, {
         access: 'public',
         addRandomSuffix: false,
-        contentType: 'image/jpeg',
+        contentType,
       });
 
-      // Upload thumbnail
-      let thumbUrl = mainBlob.url;
-      if (thumbBuffer) {
-        const thumbBlob = await put(`photos/${id}_thumb.jpeg`, thumbBuffer, {
-          access: 'public',
-          addRandomSuffix: false,
-          contentType: 'image/jpeg',
-        });
-        thumbUrl = thumbBlob.url;
-      }
+      // For thumbnails, we'll use the same image (Vercel Image Optimization handles resizing)
+      const thumbUrl = mainBlob.url;
 
       const photo = await addPhoto({
         id,
-        filename: `${id}.jpeg`,
+        filename,
         originalName: file.name,
         category,
         title: title || file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
         url: mainBlob.url,
         thumbUrl,
-        width,
-        height,
-        size: optimizedBuffer.length,
+        width: 1200,
+        height: 800,
+        size: file.size,
         featured,
         createdAt: new Date().toISOString(),
       });
@@ -119,7 +81,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Upload error:', error);
-    return Response.json({ error: 'Upload failed' }, { status: 500 });
+    return Response.json({ error: 'Upload failed: ' + (error instanceof Error ? error.message : 'Unknown error') }, { status: 500 });
   }
 }
 
@@ -135,6 +97,23 @@ export async function DELETE(request: NextRequest) {
       return Response.json({ error: 'Photo ID required' }, { status: 400 });
     }
 
+    // Get photo to find blob URLs to delete
+    const photos = await getPhotos();
+    const photo = photos.find((p) => p.id === id);
+    
+    if (!photo) {
+      return Response.json({ error: 'Photo not found' }, { status: 404 });
+    }
+
+    // Delete blobs
+    try {
+      if (photo.url) await del(photo.url);
+      if (photo.thumbUrl && photo.thumbUrl !== photo.url) await del(photo.thumbUrl);
+    } catch {
+      // blob may already be gone
+    }
+
+    // Remove from data
     const result = await deletePhoto(id);
     if (!result.success) {
       return Response.json({ error: 'Photo not found' }, { status: 404 });
