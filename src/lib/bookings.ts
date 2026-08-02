@@ -20,7 +20,7 @@ async function readBlob(key: string): Promise<string | null> {
   try {
     const { blobs } = await list({ prefix: key, limit: 1 });
     if (blobs.length === 0) return null;
-    const res = await fetch(blobs[0].url);
+    const res = await fetch(blobs[0].url, { cache: 'no-store' });
     return await res.text();
   } catch {
     return null;

@@ -1,4 +1,4 @@
-import { put, del, list } from '@vercel/blob';
+import { put, del, list, head } from '@vercel/blob';
 
 export interface Photo {
   id: string;
@@ -21,7 +21,7 @@ async function readBlob(key: string): Promise<string | null> {
   try {
     const { blobs } = await list({ prefix: key, limit: 1 });
     if (blobs.length === 0) return null;
-    const res = await fetch(blobs[0].url);
+    const res = await fetch(blobs[0].url, { cache: 'no-store' });
     return await res.text();
   } catch {
     return null;
@@ -61,7 +61,7 @@ export async function deletePhoto(id: string): Promise<{ success: boolean; photo
   // Delete image blob and thumbnail blob
   try {
     if (photo.url) await del(photo.url);
-    if (photo.thumbUrl) await del(photo.thumbUrl);
+    if (photo.thumbUrl && photo.thumbUrl !== photo.url) await del(photo.thumbUrl);
   } catch {
     // blob may already be gone
   }
