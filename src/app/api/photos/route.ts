@@ -1,16 +1,9 @@
 import { NextRequest } from 'next/server';
-import * as fs from 'fs';
-import * as path from 'path';
+import { put } from '@vercel/blob';
 import { v4 as uuidv4 } from 'uuid';
-import { getPhotos, addPhoto, deletePhoto, updatePhoto, getUploadsDir } from '@/lib/photos';
+import { getPhotos, addPhoto, deletePhoto, updatePhoto } from '@/lib/photos';
 
 const ADMIN_PASSWORD = process.env.YV_ADMIN_PASSWORD || 'yenevisuals2024';
-
-// Max dimensions for web display
-const MAX_WIDTH = 2400;
-const MAX_HEIGHT = 2400;
-const JPEG_QUALITY = 82;
-const THUMB_SIZE = 600;
 
 function isAuthorized(request: NextRequest): boolean {
   const authHeader = request.headers.get('authorization');
@@ -21,7 +14,7 @@ function isAuthorized(request: NextRequest): boolean {
 
 // GET - List all photos
 export async function GET() {
-  const photos = getPhotos();
+  const photos = await getPhotos();
   return Response.json({ photos });
 }
 
@@ -42,7 +35,6 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'No files uploaded' }, { status: 400 });
     }
 
-    const uploadsDir = getUploadsDir();
     const uploadedPhotos = [];
 
     for (const file of files) {
@@ -51,67 +43,69 @@ export async function POST(request: NextRequest) {
       }
 
       const id = uuidv4();
-      const filename = `${id}.jpeg`; // Always save as optimized JPEG
-      const thumbFilename = `${id}_thumb.jpeg`;
-      const filePath = path.join(uploadsDir, filename);
-      const thumbPath = path.join(uploadsDir, thumbFilename);
-
       const buffer = Buffer.from(await file.arrayBuffer());
 
+      let optimizedBuffer = buffer;
+      let thumbBuffer: Buffer | null = null;
       let width = 1200;
       let height = 800;
-      let finalSize = buffer.length;
 
       try {
         const sharp = (await import('sharp')).default;
         const metadata = await sharp(buffer).metadata();
-        const origW = metadata.width || 1200;
-        const origH = metadata.height || 800;
 
-        // Resize if larger than max dimensions, always convert to optimized JPEG
+        // Optimize main image
         const optimized = sharp(buffer)
-          .rotate() // Auto-rotate based on EXIF
-          .resize(MAX_WIDTH, MAX_HEIGHT, {
-            fit: 'inside',
-            withoutEnlargement: true,
-          })
-          .jpeg({ quality: JPEG_QUALITY, progressive: true, mozjpeg: true });
+          .rotate()
+          .resize(2400, 2400, { fit: 'inside', withoutEnlargement: true })
+          .jpeg({ quality: 82, progressive: true, mozjpeg: true });
 
-        const optimizedBuffer = await optimized.toBuffer();
-        fs.writeFileSync(filePath, optimizedBuffer);
-        finalSize = optimizedBuffer.length;
+        optimizedBuffer = await optimized.toBuffer();
 
-        // Get final dimensions
         const finalMeta = await sharp(optimizedBuffer).metadata();
-        width = finalMeta.width || origW;
-        height = finalMeta.height || origH;
+        width = finalMeta.width || metadata.width || 1200;
+        height = finalMeta.height || metadata.height || 800;
 
         // Create thumbnail
-        const thumbBuffer = await sharp(buffer)
+        thumbBuffer = await sharp(buffer)
           .rotate()
-          .resize(THUMB_SIZE, THUMB_SIZE, {
-            fit: 'cover',
-            position: 'centre',
-          })
+          .resize(600, 600, { fit: 'cover', position: 'centre' })
           .jpeg({ quality: 75, progressive: true })
           .toBuffer();
-        fs.writeFileSync(thumbPath, thumbBuffer);
-
       } catch {
-        // sharp failed — save original
-        fs.writeFileSync(filePath, buffer);
+        // sharp not available on Vercel — upload original
+        optimizedBuffer = buffer;
       }
 
-      const photo = addPhoto({
+      // Upload main image to Vercel Blob
+      const mainBlob = await put(`photos/${id}.jpeg`, optimizedBuffer, {
+        access: 'public',
+        addRandomSuffix: false,
+        contentType: 'image/jpeg',
+      });
+
+      // Upload thumbnail
+      let thumbUrl = mainBlob.url;
+      if (thumbBuffer) {
+        const thumbBlob = await put(`photos/${id}_thumb.jpeg`, thumbBuffer, {
+          access: 'public',
+          addRandomSuffix: false,
+          contentType: 'image/jpeg',
+        });
+        thumbUrl = thumbBlob.url;
+      }
+
+      const photo = await addPhoto({
         id,
-        filename,
+        filename: `${id}.jpeg`,
         originalName: file.name,
         category,
         title: title || file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
-        url: `/uploads/${filename}`,
+        url: mainBlob.url,
+        thumbUrl,
         width,
         height,
-        size: finalSize,
+        size: optimizedBuffer.length,
         featured,
         createdAt: new Date().toISOString(),
       });
@@ -141,18 +135,8 @@ export async function DELETE(request: NextRequest) {
       return Response.json({ error: 'Photo ID required' }, { status: 400 });
     }
 
-    // Also delete thumbnail
-    const photos = getPhotos();
-    const photo = photos.find(p => p.id === id);
-    if (photo) {
-      const thumbPath = path.join(getUploadsDir(), `${photo.id}_thumb.jpeg`);
-      if (fs.existsSync(thumbPath)) {
-        fs.unlinkSync(thumbPath);
-      }
-    }
-
-    const success = deletePhoto(id);
-    if (!success) {
+    const result = await deletePhoto(id);
+    if (!result.success) {
       return Response.json({ error: 'Photo not found' }, { status: 404 });
     }
 
@@ -175,7 +159,7 @@ export async function PATCH(request: NextRequest) {
       return Response.json({ error: 'Photo ID required' }, { status: 400 });
     }
 
-    const photo = updatePhoto(id, updates);
+    const photo = await updatePhoto(id, updates);
     if (!photo) {
       return Response.json({ error: 'Photo not found' }, { status: 404 });
     }

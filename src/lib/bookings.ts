@@ -1,5 +1,4 @@
-import * as fs from 'fs';
-import * as path from 'path';
+import { put, list } from '@vercel/blob';
 
 export interface Booking {
   id: string;
@@ -15,55 +14,62 @@ export interface Booking {
   createdAt: string;
 }
 
-const DATA_FILE = path.join(process.cwd(), 'data', 'bookings.json');
+const DATA_KEY = 'data/bookings.json';
 
-function ensureDir() {
-  const dir = path.join(process.cwd(), 'data');
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+async function readBlob(key: string): Promise<string | null> {
+  try {
+    const { blobs } = await list({ prefix: key, limit: 1 });
+    if (blobs.length === 0) return null;
+    const res = await fetch(blobs[0].url);
+    return await res.text();
+  } catch {
+    return null;
   }
 }
 
-export function getBookings(): Booking[] {
-  ensureDir();
-  if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, '[]');
+async function writeBlob(key: string, data: string): Promise<void> {
+  await put(key, data, { access: 'public', addRandomSuffix: false });
+}
+
+export async function getBookings(): Promise<Booking[]> {
+  const raw = await readBlob(DATA_KEY);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw);
+  } catch {
     return [];
   }
-  const raw = fs.readFileSync(DATA_FILE, 'utf-8');
-  return JSON.parse(raw);
 }
 
-function saveBookings(bookings: Booking[]) {
-  ensureDir();
-  fs.writeFileSync(DATA_FILE, JSON.stringify(bookings, null, 2));
+async function saveBookings(bookings: Booking[]): Promise<void> {
+  await writeBlob(DATA_KEY, JSON.stringify(bookings, null, 2));
 }
 
-export function addBooking(booking: Booking): Booking {
-  const bookings = getBookings();
+export async function addBooking(booking: Booking): Promise<Booking> {
+  const bookings = await getBookings();
   bookings.push(booking);
-  saveBookings(bookings);
+  await saveBookings(bookings);
   return booking;
 }
 
-export function updateBookingStatus(
+export async function updateBookingStatus(
   id: string,
   status: Booking['status']
-): Booking | null {
-  const bookings = getBookings();
+): Promise<Booking | null> {
+  const bookings = await getBookings();
   const index = bookings.findIndex((b) => b.id === id);
   if (index === -1) return null;
 
   bookings[index] = { ...bookings[index], status };
-  saveBookings(bookings);
+  await saveBookings(bookings);
   return bookings[index];
 }
 
-export function deleteBooking(id: string): boolean {
-  const bookings = getBookings();
+export async function deleteBooking(id: string): Promise<boolean> {
+  const bookings = await getBookings();
   const filtered = bookings.filter((b) => b.id !== id);
   if (filtered.length === bookings.length) return false;
 
-  saveBookings(filtered);
+  await saveBookings(filtered);
   return true;
 }

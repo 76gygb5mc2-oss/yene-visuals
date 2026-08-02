@@ -39,6 +39,7 @@ interface Photo {
   category: string;
   title: string;
   url: string;
+  thumbUrl?: string;
   width: number;
   height: number;
   size: number;
@@ -764,13 +765,13 @@ export default function AdminPage() {
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
-                              src={photo.url.replace('.jpeg', '_thumb.jpeg')}
+                              src={photo.thumbUrl || photo.url}
                               alt={photo.title}
                               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                               loading="lazy"
                               onError={(e) => {
                                 const target = e.target as HTMLImageElement;
-                                if (target.src.includes('_thumb')) target.src = photo.url;
+                                if (target.src !== photo.url) target.src = photo.url;
                               }}
                             />
 
@@ -873,13 +874,13 @@ export default function AdminPage() {
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
-                              src={photo.url.replace('.jpeg', '_thumb.jpeg')}
+                              src={photo.thumbUrl || photo.url}
                               alt={photo.title}
                               className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
                               loading="lazy"
                               onError={(e) => {
                                 const target = e.target as HTMLImageElement;
-                                if (target.src.includes('_thumb')) target.src = photo.url;
+                                if (target.src !== photo.url) target.src = photo.url;
                               }}
                             />
                             <div className="flex-1 min-w-0">

@@ -13,7 +13,7 @@ function isAuthorized(request: NextRequest): boolean {
 
 // GET - List all bookings
 export async function GET() {
-  const bookings = getBookings();
+  const bookings = await getBookings();
   return Response.json({ bookings });
 }
 
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const booking = addBooking({
+    const booking = await addBooking({
       id: uuidv4(),
       name,
       email,
@@ -70,7 +70,7 @@ export async function PATCH(request: NextRequest) {
       return Response.json({ error: 'Invalid status' }, { status: 400 });
     }
 
-    const booking = updateBookingStatus(id, status);
+    const booking = await updateBookingStatus(id, status);
     if (!booking) {
       return Response.json({ error: 'Booking not found' }, { status: 404 });
     }
@@ -94,7 +94,7 @@ export async function DELETE(request: NextRequest) {
     return Response.json({ error: 'Booking ID required' }, { status: 400 });
   }
 
-  const success = deleteBooking(id);
+  const success = await deleteBooking(id);
   if (!success) {
     return Response.json({ error: 'Booking not found' }, { status: 404 });
   }

@@ -46,3 +46,5 @@ healthcheck.log
 
 # uploaded photos (managed via admin, not in git)
 public/uploads/
+.env.local
+migrate-to-blob.js

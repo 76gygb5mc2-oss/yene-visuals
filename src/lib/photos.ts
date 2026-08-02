@@ -1,5 +1,4 @@
-import * as fs from 'fs';
-import * as path from 'path';
+import { put, del, list } from '@vercel/blob';
 
 export interface Photo {
   id: string;
@@ -8,6 +7,7 @@ export interface Photo {
   category: string;
   title: string;
   url: string;
+  thumbUrl?: string;
   width: number;
   height: number;
   size: number;
@@ -15,67 +15,68 @@ export interface Photo {
   createdAt: string;
 }
 
-const DATA_FILE = path.join(process.cwd(), 'data', 'photos.json');
-const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads');
+const DATA_KEY = 'data/photos.json';
 
-export function ensureDirs() {
-  if (!fs.existsSync(path.join(process.cwd(), 'data'))) {
-    fs.mkdirSync(path.join(process.cwd(), 'data'), { recursive: true });
-  }
-  if (!fs.existsSync(UPLOADS_DIR)) {
-    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+async function readBlob(key: string): Promise<string | null> {
+  try {
+    const { blobs } = await list({ prefix: key, limit: 1 });
+    if (blobs.length === 0) return null;
+    const res = await fetch(blobs[0].url);
+    return await res.text();
+  } catch {
+    return null;
   }
 }
 
-export function getPhotos(): Photo[] {
-  ensureDirs();
-  if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, '[]');
+async function writeBlob(key: string, data: string): Promise<void> {
+  await put(key, data, { access: 'public', addRandomSuffix: false });
+}
+
+export async function getPhotos(): Promise<Photo[]> {
+  const raw = await readBlob(DATA_KEY);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw);
+  } catch {
     return [];
   }
-  const raw = fs.readFileSync(DATA_FILE, 'utf-8');
-  return JSON.parse(raw);
 }
 
-export function savePhotos(photos: Photo[]) {
-  ensureDirs();
-  fs.writeFileSync(DATA_FILE, JSON.stringify(photos, null, 2));
+export async function savePhotos(photos: Photo[]): Promise<void> {
+  await writeBlob(DATA_KEY, JSON.stringify(photos, null, 2));
 }
 
-export function addPhoto(photo: Photo) {
-  const photos = getPhotos();
+export async function addPhoto(photo: Photo): Promise<Photo> {
+  const photos = await getPhotos();
   photos.push(photo);
-  savePhotos(photos);
+  await savePhotos(photos);
   return photo;
 }
 
-export function deletePhoto(id: string): boolean {
-  const photos = getPhotos();
+export async function deletePhoto(id: string): Promise<{ success: boolean; photo?: Photo }> {
+  const photos = await getPhotos();
   const photo = photos.find((p) => p.id === id);
-  if (!photo) return false;
+  if (!photo) return { success: false };
 
-  // Delete file
-  const filePath = path.join(UPLOADS_DIR, photo.filename);
-  if (fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
+  // Delete image blob and thumbnail blob
+  try {
+    if (photo.url) await del(photo.url);
+    if (photo.thumbUrl) await del(photo.thumbUrl);
+  } catch {
+    // blob may already be gone
   }
 
-  // Remove from list
   const filtered = photos.filter((p) => p.id !== id);
-  savePhotos(filtered);
-  return true;
+  await savePhotos(filtered);
+  return { success: true, photo };
 }
 
-export function updatePhoto(id: string, updates: Partial<Photo>): Photo | null {
-  const photos = getPhotos();
+export async function updatePhoto(id: string, updates: Partial<Photo>): Promise<Photo | null> {
+  const photos = await getPhotos();
   const index = photos.findIndex((p) => p.id === id);
   if (index === -1) return null;
 
   photos[index] = { ...photos[index], ...updates };
-  savePhotos(photos);
+  await savePhotos(photos);
   return photos[index];
-}
-
-export function getUploadsDir() {
-  return UPLOADS_DIR;
 }
