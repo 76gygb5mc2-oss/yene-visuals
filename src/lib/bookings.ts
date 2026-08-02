@@ -32,9 +32,9 @@ async function getDataUrl(): Promise<string> {
 async function readData(): Promise<string | null> {
   try {
     const url = await getDataUrl();
-    const res = await fetch(url, { 
+    const res = await fetch(url + `?t=${Date.now()}`, { 
       cache: 'no-store',
-      headers: { 'Cache-Control': 'no-cache' }
+      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' }
     });
     if (!res.ok) return null;
     return await res.text();
