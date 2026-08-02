@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <!--
+    Yene Visuals — Icon Only (white, square)
+    Standalone aperture mark
+  -->
+
+  <g transform="translate(24, 24)">
+    <!-- Outer ring -->
+    <circle cx="0" cy="0" r="20" stroke="white" stroke-width="0.8" fill="none"/>
+    
+    <!-- 6-blade stylized aperture -->
+    <g fill="white" opacity="0.92">
+      <path d="M 0,-5 C 3.5,-5.5 9.5,-13 14,-11.5 C 12,-7 6,-4.5 2.5,-2.5 Z"/>
+      <path d="M 0,-5 C 3.5,-5.5 9.5,-13 14,-11.5 C 12,-7 6,-4.5 2.5,-2.5 Z" transform="rotate(60)"/>
+      <path d="M 0,-5 C 3.5,-5.5 9.5,-13 14,-11.5 C 12,-7 6,-4.5 2.5,-2.5 Z" transform="rotate(120)"/>
+      <path d="M 0,-5 C 3.5,-5.5 9.5,-13 14,-11.5 C 12,-7 6,-4.5 2.5,-2.5 Z" transform="rotate(180)"/>
+      <path d="M 0,-5 C 3.5,-5.5 9.5,-13 14,-11.5 C 12,-7 6,-4.5 2.5,-2.5 Z" transform="rotate(240)"/>
+      <path d="M 0,-5 C 3.5,-5.5 9.5,-13 14,-11.5 C 12,-7 6,-4.5 2.5,-2.5 Z" transform="rotate(300)"/>
+    </g>
+  </g>
+</svg>

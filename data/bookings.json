@@ -1,0 +1,15 @@
+[
+  {
+    "id": "43bf91d9-1e18-4511-a512-2b70c28c35f3",
+    "name": "Test Client",
+    "email": "test@example.com",
+    "phone": "+1 555-123-4567",
+    "sessionType": "Wedding Photography",
+    "date": "2026-09-15",
+    "location": "Portland, OR",
+    "budget": "$2,500 - $5,000",
+    "notes": "Looking for full day coverage",
+    "status": "completed",
+    "createdAt": "2026-07-30T00:28:41.894Z"
+  }
+]

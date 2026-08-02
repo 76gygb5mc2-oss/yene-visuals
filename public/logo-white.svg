@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 48" fill="none">
+  <!--
+    Yene Visuals — White Version (for dark backgrounds)
+    Premium photography brand mark
+  -->
+
+  <!-- Aperture Icon Mark -->
+  <g transform="translate(22, 24)">
+    <!-- Delicate outer ring -->
+    <circle cx="0" cy="0" r="17" stroke="white" stroke-width="0.65" fill="none"/>
+    
+    <!--
+      Stylized 6-blade aperture iris
+      Each blade is a curved leaf shape, arranged radially.
+      The blades overlap to create the classic iris pattern with a hexagonal center void.
+    -->
+    <g fill="white" opacity="0.92">
+      <!-- Blade template rotated 6 times at 60° intervals -->
+      <!-- Each blade: starts near center, curves out to edge, arcs back -->
+      <path d="M 0,-4 C 3,-4.5 8,-11 12,-9.5 C 10,-6 5,-3.5 2,-2 Z"/>
+      <path d="M 0,-4 C 3,-4.5 8,-11 12,-9.5 C 10,-6 5,-3.5 2,-2 Z" transform="rotate(60)"/>
+      <path d="M 0,-4 C 3,-4.5 8,-11 12,-9.5 C 10,-6 5,-3.5 2,-2 Z" transform="rotate(120)"/>
+      <path d="M 0,-4 C 3,-4.5 8,-11 12,-9.5 C 10,-6 5,-3.5 2,-2 Z" transform="rotate(180)"/>
+      <path d="M 0,-4 C 3,-4.5 8,-11 12,-9.5 C 10,-6 5,-3.5 2,-2 Z" transform="rotate(240)"/>
+      <path d="M 0,-4 C 3,-4.5 8,-11 12,-9.5 C 10,-6 5,-3.5 2,-2 Z" transform="rotate(300)"/>
+    </g>
+  </g>
+
+  <!-- Brand Typography -->
+  <g fill="white">
+    <!-- YENE — bold serif, wide tracking -->
+    <text x="48" y="31"
+          font-family="Georgia, 'Times New Roman', serif"
+          font-size="21"
+          font-weight="700"
+          letter-spacing="5.5">YENE</text>
+
+    <!-- Hairline vertical divider -->
+    <line x1="132" y1="14" x2="132" y2="36" stroke="white" stroke-width="0.45" opacity="0.35"/>
+
+    <!-- VISUALS — lighter weight, slightly smaller, wider tracking -->
+    <text x="142" y="30.5"
+          font-family="Georgia, 'Times New Roman', serif"
+          font-size="16"
+          font-weight="400"
+          letter-spacing="7.5">VISUALS</text>
+  </g>
+</svg>

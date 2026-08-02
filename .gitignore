@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# server logs
+server.log
+healthcheck.log
+
+# uploaded photos (managed via admin, not in git)
+public/uploads/
