@@ -1,4 +1,4 @@
-import { put, del, list, head } from '@vercel/blob';
+import { put, del } from '@vercel/blob';
 
 export interface Photo {
   id: string;
@@ -15,25 +15,50 @@ export interface Photo {
   createdAt: string;
 }
 
-const DATA_KEY = 'data/photos.json';
+const DATA_PATHNAME = 'data/photos.json';
 
-async function readBlob(key: string): Promise<string | null> {
+// Store the known URL after first write
+let knownDataUrl: string | null = null;
+
+async function getDataUrl(): Promise<string> {
+  if (knownDataUrl) return knownDataUrl;
+  // Construct the URL from the store domain
+  // Vercel Blob URLs follow pattern: https://<store>.public.blob.vercel-storage.com/<pathname>
+  const token = process.env.BLOB_READ_WRITE_TOKEN || '';
+  // Extract store ID from token: vercel_blob_rw_<storeId>_<rest>
+  const match = token.match(/vercel_blob_rw_([^_]+)_/);
+  if (match) {
+    knownDataUrl = `https://${match[1]}.public.blob.vercel-storage.com/${DATA_PATHNAME}`;
+    return knownDataUrl;
+  }
+  throw new Error('Cannot determine blob store URL');
+}
+
+async function readData(): Promise<string | null> {
   try {
-    const { blobs } = await list({ prefix: key, limit: 1 });
-    if (blobs.length === 0) return null;
-    const res = await fetch(blobs[0].url, { cache: 'no-store' });
+    const url = await getDataUrl();
+    const res = await fetch(url, { 
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache' }
+    });
+    if (!res.ok) return null;
     return await res.text();
   } catch {
     return null;
   }
 }
 
-async function writeBlob(key: string, data: string): Promise<void> {
-  await put(key, data, { access: 'public', addRandomSuffix: false, allowOverwrite: true });
+async function writeData(data: string): Promise<void> {
+  const result = await put(DATA_PATHNAME, data, { 
+    access: 'public', 
+    addRandomSuffix: false, 
+    allowOverwrite: true,
+  });
+  knownDataUrl = result.url;
 }
 
 export async function getPhotos(): Promise<Photo[]> {
-  const raw = await readBlob(DATA_KEY);
+  const raw = await readData();
   if (!raw) return [];
   try {
     return JSON.parse(raw);
@@ -43,7 +68,7 @@ export async function getPhotos(): Promise<Photo[]> {
 }
 
 export async function savePhotos(photos: Photo[]): Promise<void> {
-  await writeBlob(DATA_KEY, JSON.stringify(photos, null, 2));
+  await writeData(JSON.stringify(photos, null, 2));
 }
 
 export async function addPhoto(photo: Photo): Promise<Photo> {

@@ -1,4 +1,4 @@
-import { put, list } from '@vercel/blob';
+import { put } from '@vercel/blob';
 
 export interface Booking {
   id: string;
@@ -14,25 +14,46 @@ export interface Booking {
   createdAt: string;
 }
 
-const DATA_KEY = 'data/bookings.json';
+const DATA_PATHNAME = 'data/bookings.json';
 
-async function readBlob(key: string): Promise<string | null> {
+let knownDataUrl: string | null = null;
+
+async function getDataUrl(): Promise<string> {
+  if (knownDataUrl) return knownDataUrl;
+  const token = process.env.BLOB_READ_WRITE_TOKEN || '';
+  const match = token.match(/vercel_blob_rw_([^_]+)_/);
+  if (match) {
+    knownDataUrl = `https://${match[1]}.public.blob.vercel-storage.com/${DATA_PATHNAME}`;
+    return knownDataUrl;
+  }
+  throw new Error('Cannot determine blob store URL');
+}
+
+async function readData(): Promise<string | null> {
   try {
-    const { blobs } = await list({ prefix: key, limit: 1 });
-    if (blobs.length === 0) return null;
-    const res = await fetch(blobs[0].url, { cache: 'no-store' });
+    const url = await getDataUrl();
+    const res = await fetch(url, { 
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache' }
+    });
+    if (!res.ok) return null;
     return await res.text();
   } catch {
     return null;
   }
 }
 
-async function writeBlob(key: string, data: string): Promise<void> {
-  await put(key, data, { access: 'public', addRandomSuffix: false, allowOverwrite: true });
+async function writeData(data: string): Promise<void> {
+  const result = await put(DATA_PATHNAME, data, { 
+    access: 'public', 
+    addRandomSuffix: false, 
+    allowOverwrite: true,
+  });
+  knownDataUrl = result.url;
 }
 
 export async function getBookings(): Promise<Booking[]> {
-  const raw = await readBlob(DATA_KEY);
+  const raw = await readData();
   if (!raw) return [];
   try {
     return JSON.parse(raw);
@@ -42,7 +63,7 @@ export async function getBookings(): Promise<Booking[]> {
 }
 
 async function saveBookings(bookings: Booking[]): Promise<void> {
-  await writeBlob(DATA_KEY, JSON.stringify(bookings, null, 2));
+  await writeData(JSON.stringify(bookings, null, 2));
 }
 
 export async function addBooking(booking: Booking): Promise<Booking> {
