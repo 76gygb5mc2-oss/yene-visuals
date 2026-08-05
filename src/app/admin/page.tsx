@@ -775,81 +775,87 @@ export default function AdminPage() {
                               }}
                             />
 
-                            {/* Hover overlay */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300">
-                              <div className="absolute bottom-0 left-0 right-0 p-3">
-                                {editingId === photo.id ? (
-                                  <div className="space-y-2">
-                                    <input
-                                      type="text"
-                                      value={editTitle}
-                                      onChange={(e) => setEditTitle(e.target.value)}
-                                      className="w-full px-2 py-1 rounded-lg bg-white/15 text-white text-xs backdrop-blur placeholder:text-white/40"
-                                      placeholder="Title"
-                                    />
-                                    <select
-                                      value={editCategory}
-                                      onChange={(e) => setEditCategory(e.target.value)}
-                                      className="w-full px-2 py-1 rounded-lg bg-white/15 text-white text-xs backdrop-blur"
-                                    >
-                                      {CATEGORIES.map((c) => (
-                                        <option key={c} value={c} className="text-black">{c}</option>
-                                      ))}
-                                    </select>
-                                    <div className="flex gap-1.5">
-                                      <button
-                                        onClick={() => handleUpdate(photo.id)}
-                                        className="flex-1 py-1 rounded-lg bg-emerald-500 text-white text-xs font-medium"
-                                      >
-                                        Save
-                                      </button>
-                                      <button
-                                        onClick={() => setEditingId(null)}
-                                        className="flex-1 py-1 rounded-lg bg-white/15 text-white text-xs"
-                                      >
-                                        Cancel
-                                      </button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <>
-                                    <p className="text-white text-xs font-medium truncate">{photo.title}</p>
-                                    <p className="text-white/40 text-[10px] mt-0.5">{photo.category} • {formatSize(photo.size)}</p>
-                                  </>
-                                )}
+                            {/* Always-visible action buttons */}
+                            {editingId !== photo.id && (
+                              <div className="absolute top-2 right-2 flex gap-1.5 z-10">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); toggleFeatured(photo); }}
+                                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-lg ${
+                                    photo.featured
+                                      ? 'bg-amber-500 text-white'
+                                      : 'bg-black/60 backdrop-blur-sm text-white/80 hover:bg-amber-500 hover:text-white'
+                                  }`}
+                                  title={photo.featured ? 'Unfeature' : 'Feature'}
+                                >
+                                  <Star className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingId(photo.id);
+                                    setEditTitle(photo.title);
+                                    setEditCategory(photo.category);
+                                  }}
+                                  className="w-8 h-8 rounded-full bg-black/60 backdrop-blur-sm text-white/80 hover:bg-blue-500 hover:text-white flex items-center justify-center transition-all shadow-lg"
+                                  title="Edit"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleDelete(photo.id); }}
+                                  className="w-8 h-8 rounded-full bg-red-500/90 text-white hover:bg-red-600 flex items-center justify-center transition-all shadow-lg"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
                               </div>
+                            )}
 
-                              {editingId !== photo.id && (
-                                <div className="absolute top-2 right-2 flex gap-1">
-                                  <button
-                                    onClick={() => toggleFeatured(photo)}
-                                    className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
-                                      photo.featured
-                                        ? 'bg-amber-500 text-white'
-                                        : 'bg-black/40 backdrop-blur text-white/70 hover:bg-amber-500 hover:text-white'
-                                    }`}
-                                  >
-                                    <Star className="w-3 h-3" />
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setEditingId(photo.id);
-                                      setEditTitle(photo.title);
-                                      setEditCategory(photo.category);
-                                    }}
-                                    className="w-7 h-7 rounded-lg bg-black/40 backdrop-blur text-white/70 hover:bg-blue-500 hover:text-white flex items-center justify-center transition-all"
-                                  >
-                                    <Edit3 className="w-3 h-3" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDelete(photo.id)}
-                                    className="w-7 h-7 rounded-lg bg-black/40 backdrop-blur text-white/70 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all"
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              )}
+                            {/* Bottom info + edit form overlay */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none">
+                              <div className="absolute bottom-0 left-0 right-0 p-3 pointer-events-auto">
+                                <p className="text-white text-xs font-medium truncate">{photo.title}</p>
+                                <p className="text-white/40 text-[10px] mt-0.5">{photo.category} • {formatSize(photo.size)}</p>
+                              </div>
                             </div>
+
+                            {/* Edit form overlay */}
+                            {editingId === photo.id && (
+                              <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-end z-20">
+                                <div className="w-full p-3 space-y-2">
+                                  <input
+                                    type="text"
+                                    value={editTitle}
+                                    onChange={(e) => setEditTitle(e.target.value)}
+                                    className="w-full px-2.5 py-1.5 rounded-lg bg-white/15 text-white text-xs backdrop-blur placeholder:text-white/40 border border-white/10"
+                                    placeholder="Title"
+                                  />
+                                  <select
+                                    value={editCategory}
+                                    onChange={(e) => setEditCategory(e.target.value)}
+                                    className="w-full px-2.5 py-1.5 rounded-lg bg-white/15 text-white text-xs backdrop-blur border border-white/10"
+                                  >
+                                    {CATEGORIES.map((c) => (
+                                      <option key={c} value={c} className="text-black">{c}</option>
+                                    ))}
+                                  </select>
+                                  <div className="flex gap-1.5">
+                                    <button
+                                      onClick={() => handleUpdate(photo.id)}
+                                      className="flex-1 py-1.5 rounded-lg bg-emerald-500 text-white text-xs font-semibold hover:bg-emerald-600 transition-colors"
+                                    >
+                                      Save
+                                    </button>
+                                    <button
+                                      onClick={() => setEditingId(null)}
+                                      className="flex-1 py-1.5 rounded-lg bg-white/15 text-white text-xs hover:bg-white/25 transition-colors"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
 
                             {/* Featured badge */}
                             {photo.featured && (
