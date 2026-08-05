@@ -92,7 +92,16 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    const { id } = await request.json();
+    // Support both query param and JSON body for id
+    let id = request.nextUrl.searchParams.get('id');
+    if (!id) {
+      try {
+        const body = await request.json();
+        id = body.id;
+      } catch {
+        // no body
+      }
+    }
     if (!id) {
       return Response.json({ error: 'Photo ID required' }, { status: 400 });
     }
